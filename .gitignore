@@ -1,0 +1,25 @@
+# Ignore data and plots folders
+data/
+plots/
+
+# Ignore model artifacts
+*.joblib
+*.pth
+*.pt
+*.npy
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Jupyter notebooks checkpoints
+.ipynb_checkpoints/
+
+# Environment folders
+env/
+venv/
+HNLP_project_env/
+
+# OS files
+.DS_Store
+Thumbs.db
