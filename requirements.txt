@@ -1,0 +1,22 @@
+# Core
+numpy
+pandas
+matplotlib
+seaborn
+
+# Machine Learning
+scikit-learn
+
+# NLP / Vector Semantics
+gensim
+
+# Utilities
+tqdm
+joblib
+
+# Optional (for plotting / analysis)
+matplotlib
+seaborn
+
+# Optional (for notebooks)
+jupyter
