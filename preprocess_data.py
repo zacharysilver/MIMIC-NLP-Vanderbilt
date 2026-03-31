@@ -53,6 +53,13 @@ def main(args):
 
     notes_df = pd.read_csv(args.notes_csv)
     readm_df = pd.read_csv(args.readmission_csv)
+    notes_only = notes_df[~notes_df["subject_id"].isin(readm_df["subject_id"])]["subject_id"].nunique()
+    print(notes_only, "notes with no matching readmission label")
+    print("Loaded notes:", len(notes_df))
+    print("Number of unique subjectid entries:", notes_df["subject_id"].nunique())
+    print("Number of unique admid entries:", notes_df["hadm_id"].nunique())
+
+    print("Number of unique subjectid readmission entries:", readm_df["subject_id"].nunique())
 
     # keep only discharge summaries if needed
     if "note_type" in notes_df.columns:
@@ -64,10 +71,11 @@ def main(args):
         "note_seq", "charttime", "storetime", "text", "token_count"
     ] if c in notes_df.columns]
     notes_df = notes_df[needed_note_cols].copy()
-
+    print(len(notes_df), "notes after filtering for discharge summaries")
     # clean text
     notes_df["clean_text"] = notes_df["text"].apply(clean_text)
-
+    notes_df["chart_date"] = pd.to_datetime(notes_df["charttime"]).dt.date
+    readm_df["first_visit_discharge_date"] = pd.to_datetime(readm_df["first_visit"].str.split(" - ").str[1]).dt.date
     # normalize label
     label_col = args.label_col
     readm_df[label_col] = readm_df[label_col].apply(normalize_label)
@@ -75,10 +83,13 @@ def main(args):
     # keep only rows with valid labels
     readm_df = readm_df.dropna(subset=[label_col]).copy()
     readm_df[label_col] = readm_df[label_col].astype(int)
+    print(len(notes_df), "notes before merging with readmission labels")
 
     # merge on subject_id
-    merged_df = notes_df.merge(readm_df, on="subject_id", how="inner")
-
+    merged_df = notes_df.merge(readm_df, left_on=["subject_id", "chart_date"], right_on=["subject_id", "first_visit_discharge_date"], how="inner")
+    print(len(merged_df), "notes after merging with readmission labels")
+    print(merged_df["hadm_id"].nunique(), "unique hadm_ids after merging")
+    print(merged_df["subject_id"].nunique(), "unique subject_ids after merging")
     # drop empty text
     merged_df = merged_df[merged_df["clean_text"].str.len() > 0].reset_index(drop=True)
 
