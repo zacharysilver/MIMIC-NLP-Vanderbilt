@@ -86,11 +86,8 @@ def main(args):
     print(len(notes_df), "notes before merging with readmission labels")
 
     # merge on subject_id
-    merged_df = notes_df.merge(readm_df, left_on=["subject_id", "chart_date"], right_on=["subject_id", "first_visit_discharge_date"], how="inner")
+    merged_df = notes_df.merge(readm_df, on="hadm_id", how="inner")
     print(len(merged_df), "notes after merging with readmission labels")
-    print(merged_df["hadm_id"].nunique(), "unique hadm_ids after merging")
-    print(merged_df["subject_id"].nunique(), "unique subject_ids after merging")
-    # drop empty text
     merged_df = merged_df[merged_df["clean_text"].str.len() > 0].reset_index(drop=True)
 
     # keep final columns
