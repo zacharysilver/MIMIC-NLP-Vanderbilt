@@ -5,7 +5,6 @@ from transformers import Trainer, TrainingArguments, AutoTokenizer, AutoModel
 from sklearn.metrics import accuracy_score, f1_score
 from transformers import EarlyStoppingCallback
 
-
 def compute_embeddings(texts, tokenizer, model, device, batch_size=64):
 
     model.eval()
@@ -42,7 +41,7 @@ def compute_embeddings(texts, tokenizer, model, device, batch_size=64):
 
             # CLS token
             cls_embeddings = outputs.last_hidden_state[:, 0, :]
-            all_embeddings.append(cls_embeddings.cpu())
+            all_embeddings.append(cls_embeddings)
 
     return torch.cat(all_embeddings)
 class EmbeddingDataset(Dataset):
@@ -70,33 +69,14 @@ def load_and_precompute(path, tokenizer, model, device):
 
     return embeddings, torch.tensor(labels)
 
-import torch.nn as nn
 
-class Classifier(nn.Module):
-    def __init__(self, input_dim=768):
-        super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(input_dim, 256),
-            nn.ReLU(),
-            nn.Dropout(0.1),
-            nn.Linear(256, 2)
-        )
-
-    def forward(self, features=None, labels=None):
-        logits = self.net(features)
-
-        loss = None
-        if labels is not None:
-            loss = nn.CrossEntropyLoss()(logits, labels)
-
-        return {"loss": loss, "logits": logits}
     
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-tokenizer = AutoTokenizer.from_pretrained("dmis-lab/biobert-base-cased-v1.1")
+tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
 
 
 model = AutoModel.from_pretrained(
-    "dmis-lab/biobert-base-cased-v1.1",
+    "distilbert-base-uncased",
     num_labels=2
 )
 
@@ -107,52 +87,82 @@ recompute=True
 # Precompute
 if recompute:
     train_embeds, train_labels = load_and_precompute("data/train.csv", tokenizer, model, device)
-    val_embeds, val_labels = load_and_precompute("data/val.csv", tokenizer, model, device)
     torch.save(train_embeds, "data/train_embeds.pt")
     torch.save(train_labels, "data/train_labels.pt")
-
+    val_embeds, val_labels = load_and_precompute("data/val.csv", tokenizer, model, device)
     torch.save(val_embeds, "data/val_embeds.pt")
     torch.save(val_labels, "data/val_labels.pt")
 else:
     train_embeds = torch.load("data/train_embeds.pt")
     train_labels = torch.load("data/train_labels.pt")
+    print(sum(train_labels) / len(train_labels))
 
     val_embeds = torch.load("data/val_embeds.pt")
     val_labels = torch.load("data/val_labels.pt")
-train_dataset = EmbeddingDataset(train_embeds, train_labels)
-val_dataset = EmbeddingDataset(val_embeds, val_labels)
 
-classifier = Classifier()
 
-def compute_metrics(eval_pred):
-    logits, labels = eval_pred
-    preds = logits.argmax(axis=1)
-    return {
-        "accuracy": accuracy_score(labels, preds),
-        "f1": f1_score(labels, preds),
-    }
 
-training_args = TrainingArguments(
-    output_dir="./results",
-    per_device_train_batch_size=128,
-    per_device_eval_batch_size=128,
-    num_train_epochs=100,
-    logging_strategy="epoch",
-    evaluation_strategy="epoch",
-    save_strategy="epoch",
-    load_best_model_at_end=True,
-    learning_rate=1e-3,
 
-)
 
-trainer = Trainer(
-    model=classifier,
-    args=training_args,
-    train_dataset=train_dataset,
-    #callbacks=[EarlyStoppingCallback(early_stopping_patience=2)],
-    eval_dataset=val_dataset,
-    compute_metrics=compute_metrics
-)
 
-trainer.train()
-trainer.save_model("./results/frozenBert/final_model")
+
+
+# import torch.nn as nn
+
+# class Classifier(nn.Module):
+#     def __init__(self, input_dim=768):
+#         super().__init__()
+#         self.net = nn.Sequential(
+#             nn.Linear(input_dim, 256),
+#             nn.ReLU(),
+#             nn.Dropout(0.1),
+#             nn.Linear(256, 2)
+#         )
+
+#     def forward(self, features=None, labels=None):
+#         logits = self.net(features)
+
+#         loss = None
+#         if labels is not None:
+#             loss = nn.CrossEntropyLoss()(logits, labels)
+
+#         return {"loss": loss, "logits": logits}
+
+
+# train_dataset = EmbeddingDataset(train_embeds, train_labels)
+# val_dataset = EmbeddingDataset(val_embeds, val_labels)
+
+# classifier = Classifier()
+
+# def compute_metrics(eval_pred):
+#     logits, labels = eval_pred
+#     preds = logits.argmax(axis=1)
+#     return {
+#         "accuracy": accuracy_score(labels, preds),
+#         "f1": f1_score(labels, preds),
+#     }
+
+# training_args = TrainingArguments(
+#     output_dir="./results/frozenBERTresults",
+#     per_device_train_batch_size=128,
+#     per_device_eval_batch_size=128,
+#     num_train_epochs=1000,
+#     logging_strategy="epoch",
+#     evaluation_strategy="epoch",
+#     save_strategy="epoch",
+#     load_best_model_at_end=True,
+#     learning_rate=1e-3,
+
+# )
+
+# trainer = Trainer(
+#     model=classifier,
+#     args=training_args,
+#     train_dataset=train_dataset,
+#     #callbacks=[EarlyStoppingCallback(early_stopping_patience=10)],
+#     eval_dataset=val_dataset,
+#     compute_metrics=compute_metrics
+# )
+
+# trainer.train()
+# trainer.save_model("./results/frozenBert/final_model")

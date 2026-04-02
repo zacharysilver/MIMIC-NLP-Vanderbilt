@@ -52,6 +52,8 @@ def load_dataset(path, tokenizer):
 
 
 def main():
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     args = parse_args()
 
     tokenizer = AutoTokenizer.from_pretrained("dmis-lab/biobert-base-cased-v1.1")
@@ -63,6 +65,8 @@ def main():
         "dmis-lab/biobert-base-cased-v1.1",
         num_labels=2
     )
+    
+    model.to(device)
 
     training_args = TrainingArguments(
         output_dir="./results",
