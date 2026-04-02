@@ -72,11 +72,11 @@ def load_and_precompute(path, tokenizer, model, device):
 
     
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
+tokenizer = AutoTokenizer.from_pretrained("medicalai/ClinicalBERT")
 
 
 model = AutoModel.from_pretrained(
-    "distilbert-base-uncased",
+    "medicalai/ClinicalBERT",
     num_labels=2
 )
 
