@@ -40,7 +40,7 @@ def compute_embeddings(texts, tokenizer, model, device, batch_size=64):
             )
 
             # CLS token
-            cls_embeddings = outputs.last_hidden_state[:, 0, :]
+            cls_embeddings = outputs.last_hidden_state.mean(dim=1)
             all_embeddings.append(cls_embeddings)
 
     return torch.cat(all_embeddings)
