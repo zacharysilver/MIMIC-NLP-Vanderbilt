@@ -4,10 +4,11 @@ import joblib
 import os
 from transformers import AutoTokenizer, AutoModel
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, roc_auc_score, confusion_matrix
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, roc_auc_score, confusion_matrix, roc_curve, auc
 from sklearn.model_selection import train_test_split
 from tqdm.auto import tqdm
-
+import matplotlib.pyplot as plt
+import seaborn as sns
 BASIC_HEADER_PREFIX = "name: unit no: admission date: discharge date: date of birth:"
 
 
@@ -210,7 +211,7 @@ def to_numpy(tensor):
     return tensor.detach().cpu().numpy()
 
 
-def evaluate_classifier(classifier, embeds, labels, split_name):
+def evaluate_classifier(classifier, embeds, labels, split_name, save_prefix=None):
     X = to_numpy(embeds)
     y = to_numpy(labels)
     preds = classifier.predict(X)
@@ -222,8 +223,32 @@ def evaluate_classifier(classifier, embeds, labels, split_name):
     print(f"Recall   : {recall_score(y, preds, zero_division=0):.4f}")
     print(f"F1       : {f1_score(y, preds, zero_division=0):.4f}")
     print(f"AUROC    : {roc_auc_score(y, probs):.4f}")
-    print("Confusion matrix:")
-    print(confusion_matrix(y, preds))
+    fpr, tpr, _ = roc_curve(labels, probs)
+    roc_auc = auc(fpr, tpr)
+
+    plt.figure()
+    plt.plot(fpr, tpr, label=f"AUC = {roc_auc:.2f}")
+    plt.plot([0, 1], [0, 1], linestyle="--")
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+    plt.title(f"ROC Curve ({split_name})")
+    plt.legend()
+    if save_prefix:
+        plt.savefig(f"{save_prefix}_{split_name}_roc.png")
+    plt.show()
+
+    # Confusion Matrix
+    cm = confusion_matrix(labels, preds)
+
+    plt.figure()
+    sns.heatmap(cm, annot=True, fmt="d")
+    plt.title(f"Confusion Matrix ({split_name})")
+    plt.xlabel("Predicted")
+    plt.ylabel("True")
+    if save_prefix:
+        plt.savefig(f"{save_prefix}_{split_name}_cm.png")
+    plt.show()
+
 
 
 classifier = LogisticRegression(
@@ -233,9 +258,9 @@ classifier = LogisticRegression(
 
 classifier.fit(to_numpy(train_embeds), to_numpy(train_labels))
 
-evaluate_classifier(classifier, train_embeds, train_labels, "Train")
-evaluate_classifier(classifier, val_embeds, val_labels, "Validation")
-evaluate_classifier(classifier, test_embeds, test_labels, "Test")
+#evaluate_classifier(classifier, train_embeds, train_labels, "Train")
+#evaluate_classifier(classifier, val_embeds, val_labels, "Validation")
+evaluate_classifier(classifier, test_embeds, test_labels, "Test", save_prefix="frozenBert")
 
 os.makedirs("results/frozenBert", exist_ok=True)
 joblib.dump(classifier, "results/frozenBert/logistic_regression.joblib")
